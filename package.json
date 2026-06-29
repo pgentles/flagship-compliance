@@ -1,7 +1,7 @@
 {
   "name": "flagship-compliance",
   "version": "1.0.0",
-  "description": "Regulatory compliance analysis API for AI agents \u2014 GLBA, SOX, PCI-DSS, CCPA, HIPAA checks (X402 payment protocol)",
+  "description": "Regulatory compliance analysis API for AI agents — GLBA, SOX, PCI-DSS, CCPA, HIPAA checks (X402 payment protocol)",
   "main": "dist/server.js",
   "type": "commonjs",
   "scripts": {
@@ -14,8 +14,8 @@
     "express": "^4.21.2"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "typescript": "^5.9.3"
   }
 }

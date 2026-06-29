@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json({ limit: '256kb' }));
 
 // ─── X402 Middleware (x402 v2 spec compliant) ──────────────────────
-const FREE_PATHS = ['/', '/health', '/openapi.json', '/favicon.ico', '/api/regulations', '/api/categories'];
+const FREE_PATHS = ['/', '/health', '/openapi.json', '/favicon.ico', '/api/regulations', '/api/categories', '/api/sales'];
 
 app.use((req: Request, res: Response, next: any) => {
   if (FREE_PATHS.includes(req.path)) return next();
@@ -47,6 +47,15 @@ app.use((req: Request, res: Response, next: any) => {
   }
 
   next();
+
+  // Payment received → record sale
+  if (payment && req.path.startsWith('/api/') && !FREE_PATHS.includes(req.path)) {
+    queryLog.push({
+      type: (req.path.match(/\/api\/(\w+)/)?.[1] || 'unknown') as string,
+      timestamp: new Date().toISOString(),
+      path: req.path,
+    });
+  }
 });
 
 // ─── Health ─────────────────────────────────────────────────────────
@@ -56,6 +65,24 @@ app.get('/health', (_req: Request, res: Response) => {
     version: VERSION,
     endpoints: ['/api/analyze', '/api/detailed', '/api/regulations', '/api/categories'],
     uptime: process.uptime()
+  });
+});
+
+// ─── Sales Endpoint ─────────────────────────────────────────────────
+app.get('/api/sales', (_req: Request, res: Response) => {
+  const transactions = queryLog
+    .filter(q => q.type !== 'sales')
+    .map(q => ({
+      type: q.type,
+      timestamp: q.timestamp,
+      path: q.path,
+      amountUsdc: q.type === 'analyze' ? '0.07' : q.type === 'detailed' ? '0.15' : '0.03',
+    }));
+  const totalRevenue = transactions.reduce((sum, t) => sum + parseFloat(t.amountUsdc), 0);
+  res.json({
+    total: transactions.length,
+    revenue_usdc: totalRevenue.toFixed(2),
+    recent: transactions.slice(-20),
   });
 });
 
