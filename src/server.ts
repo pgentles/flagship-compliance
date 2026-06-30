@@ -9,6 +9,12 @@ const VERSION = '1.0.0';
 const USDC_BASE_MAINNET = '0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA';
 const BASE_NETWORK_CAIP2 = 'eip155:8453';
 
+// Price map per endpoint (atomic units) — must match OpenAPI discovery
+const priceMap: Record<string, string> = {
+  'api/analyze': '70000',   // 0.07 USDC
+  'api/detailed': '150000', // 0.15 USDC
+};
+
 app.use(cors());
 app.use(express.json({ limit: '256kb' }));
 
@@ -22,22 +28,45 @@ app.use((req: Request, res: Response, next: any) => {
   if (!payment) {
     const wallet = process.env.WALLET_ADDRESS || '0x421C25445d6CF7B292933D743E698ed24dE36270';
     const resourceUrl = `https://${req.headers.host}${req.path}`;
-    const accepts = [{
-      scheme: 'exact',
-      network: BASE_NETWORK_CAIP2,
-      amount: '75000',
-      asset: USDC_BASE_MAINNET,
-      payTo: wallet,
-      maxTimeoutSeconds: 60,
-      resource: {
-        url: resourceUrl,
-        description: 'Regulatory compliance analysis — GLBA, SOX, PCI-DSS, CCPA, HIPAA',
-        mimeType: 'application/json',
-        serviceName: 'Flagship Compliance',
-        tags: ['compliance', 'regulatory', 'glba', 'sox', 'pci-dss', 'ccpa', 'hipaa'],
+    const endpointName = req.path.replace('/api/', '');
+    const amount = priceMap[endpointName] || '70000';
+
+    // Per x402 spec: provide TWO network requirements — "base" first, then "eip155:8453"
+    // Both with same asset, payTo, amount, resource, scheme: "exact"
+    const accepts = [
+      {
+        scheme: 'exact',
+        network: 'base',
+        amount,
+        asset: USDC_BASE_MAINNET,
+        payTo: wallet,
+        maxTimeoutSeconds: 60,
+        resource: {
+          url: resourceUrl,
+          description: 'Regulatory compliance analysis — GLBA, SOX, PCI-DSS, CCPA, HIPAA',
+          mimeType: 'application/json',
+          serviceName: 'Flagship Compliance',
+          tags: ['compliance', 'regulatory', 'glba', 'sox', 'pci-dss', 'ccpa', 'hipaa'],
+        },
+        extra: { name: 'USDC', version: '2' },
       },
-      extra: { name: 'USDC', version: '2' },
-    }];
+      {
+        scheme: 'exact',
+        network: BASE_NETWORK_CAIP2,
+        amount,
+        asset: USDC_BASE_MAINNET,
+        payTo: wallet,
+        maxTimeoutSeconds: 60,
+        resource: {
+          url: resourceUrl,
+          description: 'Regulatory compliance analysis — GLBA, SOX, PCI-DSS, CCPA, HIPAA',
+          mimeType: 'application/json',
+          serviceName: 'Flagship Compliance',
+          tags: ['compliance', 'regulatory', 'glba', 'sox', 'pci-dss', 'ccpa', 'hipaa'],
+        },
+        extra: { name: 'USDC', version: '2' },
+      }
+    ];
     const body = { x402Version: 2, accepts, wallet };
     const b64 = Buffer.from(JSON.stringify(body)).toString('base64');
     res.set('X-Payment-Protocol', 'x402');
